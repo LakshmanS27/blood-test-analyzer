@@ -1,6 +1,9 @@
+## Importing libraries and files
 import os
 from dotenv import load_dotenv
 load_dotenv()
+
+### Load environment variables
 os.environ['GOOGLE_API_KEY'] = os.getenv("GOOGLE_API_KEY")
 
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -9,12 +12,13 @@ from crewai import Agent
 
 from tools import search_tool, BloodTestReportTool
 
+### Loading LLM from Google AI
 llm = ChatGoogleGenerativeAI(model='gemini-1.5-flash',
                              temperature=0.5,
                              verbose=True,
                              google_api_key=os.getenv('GOOGLE_API_KEY'))
 
-# Creating an Experienced Doctor
+# Creating an Experienced Doctor agent
 doctor=Agent(
     role="Senior Experienced Doctor",
     goal="Deliver advice to patients based on their query\n query: {query}",
@@ -34,6 +38,7 @@ doctor=Agent(
     allow_delegation=False
 )
 
+# Creatinga a verifier agent
 verifier = Agent(
     role="Blood Report Verifier",
     goal="Only read the data once.\n\
