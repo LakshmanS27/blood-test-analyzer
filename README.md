@@ -1,6 +1,6 @@
 # 🧪 Blood Test Report Analyzer (CrewAI + FastAPI + Celery + Mistral AI)
 
-This is a scalable AI system for analyzing blood test PDF reports using [CrewAI](https://github.com/joaomdmoura/crewai), Celery, and FastAPI. The system uses multiple AI agents (doctor, nutritionist, exercise specialist, verifier) to collaboratively analyze and summarize blood reports. Tasks are executed asynchronously using Celery and results are stored in a local SQLite database.
+This is a scalable AI system for analyzing blood test PDF reports using [CrewAI](https://github.com/joaomdmoura/crewai), Celery, FastAPI and Mistral AI. The system uses multiple AI agents (doctor, nutritionist, exercise specialist, verifier) to collaboratively analyze and summarize blood reports. Tasks are executed asynchronously using Celery and results are stored in a local SQLite database.
 
 ---
 
