@@ -182,6 +182,11 @@ Visit: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 ├── data/                 # Uploaded PDFs stored temporarily
 └── reports.db            # SQLite database for results
 ```
+## Working
+![1](https://github.com/user-attachments/assets/464bd7f3-a15b-4ca7-8142-a07ecccefb63)
+![2](https://github.com/user-attachments/assets/025ce58c-4859-4f5c-94dc-a9999aaf9954)
+![3](https://github.com/user-attachments/assets/af82f90c-5c72-42f8-a675-0acc8ab69042)
+![4](https://github.com/user-attachments/assets/f120e820-0418-42fc-b5e9-3f3e12d6a2f6)
 
 ---
 
