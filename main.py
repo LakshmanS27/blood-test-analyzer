@@ -1,84 +1,70 @@
-import asyncio
-# To get or create an eventloop for running streamlit
-# Need to use this before importing streamlit
-def get_or_create_eventloop():
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException
+import os, uuid
+from celery_tasks import process_blood_report
+from celery.result import AsyncResult
+from celery_worker import celery_app
+from database import init_db
+
+app = FastAPI()
+
+@app.get("/")
+async def root():
+    return {"message": "Blood Test Report Analyser API is running"}
+
+@app.post("/analyze")
+async def analyze_blood_report(
+    file: UploadFile = File(...),
+    query: str = Form(default="Summarise my Blood Test Report")
+):
+    if not file.filename.endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported.")
+
+    file_id = str(uuid.uuid4())
+    file_path = f"data/blood_test_report_{file_id}.pdf"
+
     try:
-        return asyncio.get_event_loop()
-    except RuntimeError as ex:
-        if "There is no current event loop in thread" in str(ex):
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            return asyncio.get_event_loop()
-
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-
-from crewai import Crew, Process
-import streamlit as st
-import time
-
-from agents import doctor, verifier
-from task import help_patients, verification
-
-def run_crew(query: str, file_path: str="data/sample.pdf"):
-    """To run the whole crew
-
-    Args:
-        query (str): query of the user
-        file_path (str, optional): path to the blood report file. Defaults to "data/sample.pdf".
-
-    Returns:
-        str: Response of the agents
-    """
-    medical_crew = Crew(
-        agents=[verifier, doctor],
-        tasks=[verification, help_patients],
-        process=Process.sequential,
-    )
-
-    result = medical_crew.kickoff({'query': query, "file_path": file_path})
-    return result
-
-
-st.title("Blood Test Report Analyser")
-query =  st.text_input("What can I help you with?",
-                       placeholder="Summarise my Blood Test Report").strip()
-uploaded_file = st.file_uploader("Upload your blod test report here!")
-
-file_path = "data/blood_test_report.pdf"
-
-
-def stream_data(response):
-    """To stream the output of the agents
-
-    Args:
-        response (str): response from agents
-
-    Yields:
-        str: streamed output
-    """
-    for word in response.split(" "):
-        yield word + " "
-        time.sleep(0.02)
-
-
-if st.button("Submit"):
-    # verifying for None values
-    if uploaded_file is not None:
-        ## Write file to database
+        os.makedirs("data", exist_ok=True)
         with open(file_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
-            f.close()
-        
-        # verifying for None values
-        if query=="" or query is None:
-            query = "Summarise my Blood Test Report"
-        st.success("Your data was correctly submitted.")
-        
-        ## Running the crew
-        response = run_crew(query=query, file_path=file_path)
-        
-        ## Get streaming output on your streamlit web interface
-        st.write_stream(stream_data(response))
-    else:
-        st.error("You didn't upload a file.")
+            content = await file.read()
+            f.write(content)
+
+        query = query.strip() or "Summarise my Blood Test Report"
+
+        # Submit job to Celery
+        task = process_blood_report.delay(query, file_path)
+
+        return {
+            "status": "processing",
+            "task_id": task.id,
+            "message": "Analysis in progress. Poll /result/{task_id} to get the report."
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing blood report: {str(e)}")
+
+@app.get("/result/{task_id}")
+def get_result(task_id: str):
+    task = AsyncResult(task_id, app=celery_app)
+
+    if task.state == "PENDING":
+        return {
+            "status": "pending",
+            "message": "The task is still being processed."
+        }
+
+    elif task.state == "SUCCESS":
+        return {
+            "status": "completed",
+            "result": task.result
+        }
+
+    elif task.state == "FAILURE":
+        return {
+            "status": "failed",
+            "error": str(task.result)
+        }
+
+    return {"status": task.state}
+
+# Initialize DB on app startup
+init_db()

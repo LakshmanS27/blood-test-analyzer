@@ -1,62 +1,65 @@
-## Importing libraries and files
 import os
 from dotenv import load_dotenv
 load_dotenv()
 
-### Load environment variables
-os.environ['GOOGLE_API_KEY'] = os.getenv("GOOGLE_API_KEY")
-
-from langchain_google_genai import ChatGoogleGenerativeAI
-
 from crewai import Agent
+from langchain_community.chat_models import ChatLiteLLM  # ✅ use LiteLLM wrapper
+from my_tools import read_data_tool, analyze_nutrition_tool, create_exercise_plan_tool
 
-from tools import search_tool, BloodTestReportTool
+# ✅ Ensure MISTRAL_API_KEY is set
+if not os.getenv("MISTRAL_API_KEY"):
+    raise ValueError("MISTRAL_API_KEY not set in .env")
 
-### Loading LLM from Google AI
-llm = ChatGoogleGenerativeAI(model='gemini-1.5-flash',
-                             temperature=0.5,
-                             verbose=True,
-                             google_api_key=os.getenv('GOOGLE_API_KEY'))
+llm = ChatLiteLLM(
+    model="mistral/mistral-medium-latest",  # ✅ LiteLLM expects provider/model format
+    api_key=os.getenv("MISTRAL_API_KEY"),
+    temperature=0.7
+)
 
-# Creating an Experienced Doctor agent
-doctor=Agent(
-    role="Senior Experienced Doctor",
-    goal="Deliver advice to patients based on their query\n query: {query}",
+doctor = Agent(
+    role="Experienced Medical Doctor",
+    goal="Provide evidence-based medical insights from the uploaded blood test report.",
     verbose=True,
     memory=True,
-    backstory=(
-        "Driven by passion, you are a senior doctor."
-        "Since most of your patients come from non-medical backgrounds, you explain things to them in a casual and kind manner."
-        "Your speciality is finding abnormalities in the blood test report."
-        "You are knowledeable in analyzing the blood test report, summarizing it in an easy-to-understand manner if the patient asks."
-        "You can also provide health recommendations in detail to your patients along with web url links to support your points."
-    ),
-    tools=[search_tool, BloodTestReportTool().read_data_tool],
+    backstory="Board-certified internal medicine specialist with 20+ years of diagnostic experience.",
+    tools=[read_data_tool],
     llm=llm,
-    max_iter=10,
-    max_rpm=14,
+    max_iter=2,
     allow_delegation=False
 )
 
-# Creatinga a verifier agent
 verifier = Agent(
-    role="Blood Report Verifier",
-    goal="Only read the data once.\n\
-You will be provided with a path to the file given by the user, read the data of the file provided by the user and use your knowledge to verify if the data is a blood report or not.\n\
-If it is a blood test report then tell the doctor that the data is correct.\
-If it's not the blood report and tell the senior doctor that no blood report was given.\n\
-file_path: {file_path}.\n\
-After getting the blood test report you should tell the doctor that it is a valid report.",
+    role="Medical File Verifier",
+    goal="Ensure the uploaded document is a valid and readable blood test report.",
     verbose=True,
     memory=True,
-    backstory=(
-        "You have experience with understanding a blood report in any format"
-        "You always read the blood report and then pass it to the senior doctor after verifying it."
-    ),
-    tools = [BloodTestReportTool().read_data_tool],
+    backstory="You specialize in analyzing medical records for completeness and authenticity.",
+    tools=[read_data_tool],
     llm=llm,
     max_iter=1,
-    max_rpm=7,
-    allow_delegation=True
+    allow_delegation=False
 )
 
+nutritionist = Agent(
+    role="Clinical Nutrition Expert",
+    goal="Provide dietary advice based on identified deficiencies in the blood report.",
+    verbose=True,
+    memory=True,
+    backstory="Licensed dietitian skilled in interpreting blood chemistry for nutritional optimization.",
+    tools=[read_data_tool, analyze_nutrition_tool],
+    llm=llm,
+    max_iter=2,
+    allow_delegation=False
+)
+
+exercise_specialist = Agent(
+    role="Rehabilitation and Fitness Advisor",
+    goal="Suggest suitable exercises based on health indicators in the report.",
+    verbose=True,
+    memory=True,
+    backstory="Certified personal trainer with a focus on clinical and post-injury fitness programming.",
+    tools=[read_data_tool, create_exercise_plan_tool],
+    llm=llm,
+    max_iter=2,
+    allow_delegation=False
+)

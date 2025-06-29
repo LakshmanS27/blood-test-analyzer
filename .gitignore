@@ -1,2 +1,18 @@
-__pycache__
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env
+venv_311/
+
+# Logs and data
+*.log
+*.db
+data/
+
+# Env config
 .env
+
+# IDE/editor folders
+.vscode/
+.idea/
